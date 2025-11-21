@@ -4,7 +4,6 @@
 
 The database schema is designed to support:
 
-- Multiple users
 - Multiple shows (movie + time)
 - Seat layouts per show
 - Safe seat reservations
@@ -12,7 +11,7 @@ The database schema is designed to support:
 
 The core tables are:
 
-- `users`
+- `halls`
 - `shows`
 - `seats`
 - `reservations`
@@ -24,12 +23,10 @@ All tables are designed for MySQL.
 
 ## 2. Entities and Relationships
 
-### **Users**
+### **Halls**
 
-- Represents customers using the system.
-- A user can:
-  - Make reservations
-  - Join waiting lists
+- Represents Halls of the cinema.
+- each hall has diffrent set of seats.
 
 ### **Shows**
 
@@ -60,11 +57,3 @@ All tables are designed for MySQL.
   - Belongs to one user
   - Belongs to one show
   - Is processed when a seat becomes available
-
----
-
-## 3. Table Definitions
-
-### 3.1 `users` Table
-
-Stores basic user information and credentials.
