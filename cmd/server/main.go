@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"time"
+	"net/http"
 
 	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
@@ -11,6 +12,9 @@ import (
 
 	"seat-reservation/pkg/rabbitmq"
 	"seat-reservation/pkg/redisclient"
+
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 type ServerConfig struct {
@@ -116,25 +120,65 @@ func main() {
 	if err != nil {
 		log.Fatalf("MySQL connection failed: %v", err)
 	}
+	_ = db
 	log.Println("MySQL connected ✔")
-	rdb, err := redisclient.New(redisclient.Config{
-		Enabled:  true,
-		Addr:     cfg.Redis.Address,
-		Password: cfg.Redis.Password,
-		DB:       cfg.Redis.DB,
-	})
-	if err != nil {
-		log.Fatalf("Redis error: %v", err)
-	}
-	if rdb != nil {
-		log.Println("Redis connected ✔")
-	}
 
-	rb, err := rabbitmq.NewRabbitMQ(cfg.RabbitMQ.URL)
-	if err != nil {
-		log.Fatalf("RabbitMQ error: %v", err)
+	// rdb, err := redisclient.New(redisclient.Config{
+	// 	Enabled:  true,
+	// 	Addr:     cfg.Redis.Address,
+	// 	Password: cfg.Redis.Password,
+	// 	DB:       cfg.Redis.DB,
+	// })
+	// if err != nil {
+	// 	log.Fatalf("Redis error: %v", err)
+	// }
+	// if rdb != nil {
+	// 	log.Println("Redis connected ✔")
+	// }
+
+	// rb, err := rabbitmq.NewRabbitMQ(cfg.RabbitMQ.URL)
+	// if err != nil {
+	// 	log.Fatalf("RabbitMQ error: %v", err)
+	// }
+	// log.Println("Rabbitmq Connected!")
+	// defer rb.Close()
+
+    e := echo.New()
+    e.HideBanner = true
+
+    e.Use(middleware.Recover())
+    e.Use(middleware.Logger())
+    e.Use(middleware.CORS())
+    e.Use(middleware.Secure())
+	// ---------------------------
+// API Versioning
+// ---------------------------
+api := e.Group("/api")
+v1 := api.Group("/v1")
+
+// Empty modules for now
+showsGroup := v1.Group("/shows")
+seatsGroup := v1.Group("/seats")
+reservationsGroup := v1.Group("/reservations")
+waitingGroup := v1.Group("/waiting")
+
+log.Println("API routes initialized.")
+
+
+    // Health Check
+	e.GET("/healthz", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]any{
+			"status": "ok",
+			"time":   time.Now().UTC(),
+		})
+	})
+
+	addr := fmt.Sprintf(":%d", cfg.Server.Port)
+	log.Printf("Server is running on %s ...", addr)
+
+	if err := e.Start(addr); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-	log.Println("Rabbitmq Connected!")
-	defer rb.Close()
+	
 
 }
