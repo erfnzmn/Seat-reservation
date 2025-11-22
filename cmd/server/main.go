@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+
+	"seat-reservation/pkg/redisclient"
 )
 
 type ServerConfig struct {
@@ -114,5 +116,17 @@ func main() {
 		log.Fatalf("MySQL connection failed: %v", err)
 	}
 	log.Println("MySQL connected ✔")
+	rdb, err := redisclient.New(redisclient.Config{
+		Enabled:  true,
+		Addr:     cfg.Redis.Address,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	})
+	if err != nil {
+		log.Fatalf("Redis error: %v", err)
+	}
+	if rdb != nil {
+		log.Println("Redis connected ✔")
+	}
 
 }
