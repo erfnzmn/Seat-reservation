@@ -9,6 +9,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
+	"seat-reservation/pkg/rabbitmq"
 	"seat-reservation/pkg/redisclient"
 )
 
@@ -128,5 +129,12 @@ func main() {
 	if rdb != nil {
 		log.Println("Redis connected ✔")
 	}
+
+	rb, err := rabbitmq.NewRabbitMQ(cfg.RabbitMQ.URL)
+	if err != nil {
+		log.Fatalf("RabbitMQ error: %v", err)
+	}
+	log.Println("Rabbitmq Connected!")
+	defer rb.Close()
 
 }
