@@ -45,13 +45,16 @@ type RabbitConfig struct {
 type LoggingConfig struct {
 	Level string `mapstructure:"level"`
 }
-
+type AdminConfig struct {
+    Key string `mapstructure:"key"`
+}
 type Config struct {
 	Server   ServerConfig `mapstructure:"server"`
 	MySQL    MySQLConfig  `mapstructure:"mysql"`
 	Redis    RedisConfig  `mapstructure:"redis"`
 	RabbitMQ RabbitConfig `mapstructure:"rabbitmq"`
 	Logging  LoggingConfig `mapstructure:"logging"`
+	Admin    AdminConfig      `mapstructure:"admin"`
 }
 
 func loadConfig() (*Config, error) {
