@@ -15,6 +15,9 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+
+	"seat-reservation/internals/shows"
+
 )
 
 type ServerConfig struct {
@@ -158,6 +161,17 @@ api := e.Group("/api")
 v1 := api.Group("/v1")
 
 showsGroup := v1.Group("/shows")
+showsRepo := shows.NewRepository(db)
+showsService := shows.NewService(showsRepo)
+
+adminKey := cfg.Admin.Key
+
+showsHandler := shows.NewHandler(showsService, adminKey)
+showsHandler.RegisterRoutes(showsGroup)
+
+log.Println("Show module registered ✔")
+
+
 seatsGroup := v1.Group("/seats")
 reservationsGroup := v1.Group("/reservations")
 waitingGroup := v1.Group("/waiting")
