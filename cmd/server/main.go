@@ -150,13 +150,10 @@ func main() {
     e.Use(middleware.Logger())
     e.Use(middleware.CORS())
     e.Use(middleware.Secure())
-	// ---------------------------
-// API Versioning
-// ---------------------------
+
 api := e.Group("/api")
 v1 := api.Group("/v1")
 
-// Empty modules for now
 showsGroup := v1.Group("/shows")
 seatsGroup := v1.Group("/seats")
 reservationsGroup := v1.Group("/reservations")
@@ -165,7 +162,6 @@ waitingGroup := v1.Group("/waiting")
 log.Println("API routes initialized.")
 
 
-    // Health Check
 	e.GET("/healthz", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]any{
 			"status": "ok",
