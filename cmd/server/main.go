@@ -19,6 +19,7 @@ import (
 	"seat-reservation/internals/halls"
 	"seat-reservation/internals/seats"
 	"seat-reservation/internals/shows"
+	"seat-reservation/internals/seeder"
 )
 
 type ServerConfig struct {
@@ -137,8 +138,8 @@ func main() {
 	err = db.AutoMigrate(
 		&shows.Show{},
 		// اگر پکیج‌های دیگر هم ساختیم اینجا اضافه می‌کنیم:
-		// &halls.Hall{},
-		// &seats.Seat{},
+		&halls.Hall{},
+		&seats.Seat{},
 		// &reservations.Reservation{},
 		// &waitinglist.WaitingList{},
 	)
@@ -148,6 +149,9 @@ func main() {
 	}
 
 	log.Println("AutoMigrate completed ✔")
+
+	seeder.SeedInitialData(db)
+
 
 
 	// rdb, err := redisclient.New(redisclient.Config{
