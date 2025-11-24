@@ -10,8 +10,8 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
-	"seat-reservation/pkg/rabbitmq"
-	"seat-reservation/pkg/redisclient"
+	// "seat-reservation/pkg/rabbitmq"
+	// "seat-reservation/pkg/redisclient"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -115,6 +115,7 @@ func connectMySQL(cfg *Config) (*gorm.DB, error) {
 
 func main() {
 	cfg, err := loadConfig()
+	log.Println("Loaded admin key:", cfg.Admin.Key)
 	if err != nil {
 		log.Fatalf("Config error: %v", err)
 	}
@@ -128,6 +129,25 @@ func main() {
 	}
 	_ = db
 	log.Println("MySQL connected ✔")
+
+	// --- AUTO MIGRATE (RUN ONCE) ---
+	log.Println("Running AutoMigrate...")
+
+	err = db.AutoMigrate(
+		&shows.Show{},
+		// اگر پکیج‌های دیگر هم ساختیم اینجا اضافه می‌کنیم:
+		// &halls.Hall{},
+		// &seats.Seat{},
+		// &reservations.Reservation{},
+		// &waitinglist.WaitingList{},
+	)
+
+	if err != nil {
+		log.Fatalf("AutoMigrate error: %v", err)
+	}
+
+	log.Println("AutoMigrate completed ✔")
+
 
 	// rdb, err := redisclient.New(redisclient.Config{
 	// 	Enabled:  true,
@@ -172,9 +192,9 @@ showsHandler.RegisterRoutes(showsGroup)
 log.Println("Show module registered ✔")
 
 
-seatsGroup := v1.Group("/seats")
-reservationsGroup := v1.Group("/reservations")
-waitingGroup := v1.Group("/waiting")
+// seatsGroup := v1.Group("/seats")
+// reservationsGroup := v1.Group("/reservations")
+// waitingGroup := v1.Group("/waiting")
 
 log.Println("API routes initialized.")
 
