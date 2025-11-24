@@ -10,11 +10,14 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
-	"seat-reservation/pkg/rabbitmq"
-	"seat-reservation/pkg/redisclient"
+	// "seat-reservation/pkg/rabbitmq"
+	// "seat-reservation/pkg/redisclient"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+
+	"seat-reservation/internals/shows"
+
 )
 
 type ServerConfig struct {
@@ -45,13 +48,16 @@ type RabbitConfig struct {
 type LoggingConfig struct {
 	Level string `mapstructure:"level"`
 }
-
+type AdminConfig struct {
+    Key string `mapstructure:"key"`
+}
 type Config struct {
 	Server   ServerConfig `mapstructure:"server"`
 	MySQL    MySQLConfig  `mapstructure:"mysql"`
 	Redis    RedisConfig  `mapstructure:"redis"`
 	RabbitMQ RabbitConfig `mapstructure:"rabbitmq"`
 	Logging  LoggingConfig `mapstructure:"logging"`
+	Admin    AdminConfig      `mapstructure:"admin"`
 }
 
 func loadConfig() (*Config, error) {
@@ -109,6 +115,7 @@ func connectMySQL(cfg *Config) (*gorm.DB, error) {
 
 func main() {
 	cfg, err := loadConfig()
+	log.Println("Loaded admin key:", cfg.Admin.Key)
 	if err != nil {
 		log.Fatalf("Config error: %v", err)
 	}
@@ -122,6 +129,25 @@ func main() {
 	}
 	_ = db
 	log.Println("MySQL connected ✔")
+
+	// --- AUTO MIGRATE (RUN ONCE) ---
+	log.Println("Running AutoMigrate...")
+
+	err = db.AutoMigrate(
+		&shows.Show{},
+		// اگر پکیج‌های دیگر هم ساختیم اینجا اضافه می‌کنیم:
+		// &halls.Hall{},
+		// &seats.Seat{},
+		// &reservations.Reservation{},
+		// &waitinglist.WaitingList{},
+	)
+
+	if err != nil {
+		log.Fatalf("AutoMigrate error: %v", err)
+	}
+
+	log.Println("AutoMigrate completed ✔")
+
 
 	// rdb, err := redisclient.New(redisclient.Config{
 	// 	Enabled:  true,
@@ -150,22 +176,29 @@ func main() {
     e.Use(middleware.Logger())
     e.Use(middleware.CORS())
     e.Use(middleware.Secure())
-	// ---------------------------
-// API Versioning
-// ---------------------------
+
 api := e.Group("/api")
 v1 := api.Group("/v1")
 
-// Empty modules for now
 showsGroup := v1.Group("/shows")
-seatsGroup := v1.Group("/seats")
-reservationsGroup := v1.Group("/reservations")
-waitingGroup := v1.Group("/waiting")
+showsRepo := shows.NewRepository(db)
+showsService := shows.NewService(showsRepo)
+
+adminKey := cfg.Admin.Key
+
+showsHandler := shows.NewHandler(showsService, adminKey)
+showsHandler.RegisterRoutes(showsGroup)
+
+log.Println("Show module registered ✔")
+
+
+// seatsGroup := v1.Group("/seats")
+// reservationsGroup := v1.Group("/reservations")
+// waitingGroup := v1.Group("/waiting")
 
 log.Println("API routes initialized.")
 
 
-    // Health Check
 	e.GET("/healthz", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]any{
 			"status": "ok",
