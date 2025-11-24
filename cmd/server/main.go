@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
-	"time"
 	"net/http"
+	"time"
 
 	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
@@ -16,8 +16,9 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
+	"seat-reservation/internals/halls"
+	"seat-reservation/internals/seats"
 	"seat-reservation/internals/shows"
-
 )
 
 type ServerConfig struct {
@@ -190,6 +191,23 @@ showsHandler := shows.NewHandler(showsService, adminKey)
 showsHandler.RegisterRoutes(showsGroup)
 
 log.Println("Show module registered ✔")
+
+// --- Halls ---
+hallsRepo := halls.NewRepository(db)
+hallsService := halls.NewService(hallsRepo)
+hallsHandler := halls.NewHandler(hallsService)
+
+hallsGroup := v1.Group("/halls")
+hallsHandler.RegisterRoutes(hallsGroup)
+
+// --- Seats ---
+seatsRepo := seats.NewRepository(db)
+seatsService := seats.NewService(seatsRepo)
+seatsHandler := seats.NewHandler(seatsService)
+
+seatsGroup := v1.Group("/halls/:hall_id/seats")
+seatsHandler.RegisterRoutes(seatsGroup)
+
 
 
 // seatsGroup := v1.Group("/seats")
