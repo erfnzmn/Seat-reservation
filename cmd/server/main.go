@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	// "seat-reservation/pkg/rabbitmq"
-	// "seat-reservation/pkg/redisclient"
+	"seat-reservation/pkg/redisclient"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -20,6 +20,7 @@ import (
 	"seat-reservation/internals/seats"
 	"seat-reservation/internals/shows"
 	"seat-reservation/internals/seeder"
+	"seat-reservation/internals/reservation"
 )
 
 type ServerConfig struct {
@@ -140,7 +141,7 @@ func main() {
 		// اگر پکیج‌های دیگر هم ساختیم اینجا اضافه می‌کنیم:
 		&halls.Hall{},
 		&seats.Seat{},
-		// &reservations.Reservation{},
+		&reservation.Reservation{},
 		// &waitinglist.WaitingList{},
 	)
 
@@ -154,18 +155,18 @@ func main() {
 
 
 
-	// rdb, err := redisclient.New(redisclient.Config{
-	// 	Enabled:  true,
-	// 	Addr:     cfg.Redis.Address,
-	// 	Password: cfg.Redis.Password,
-	// 	DB:       cfg.Redis.DB,
-	// })
-	// if err != nil {
-	// 	log.Fatalf("Redis error: %v", err)
-	// }
-	// if rdb != nil {
-	// 	log.Println("Redis connected ✔")
-	// }
+	rdb, err := redisclient.New(redisclient.Config{
+		Enabled:  true,
+		Addr:     cfg.Redis.Address,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	})
+	if err != nil {
+		log.Fatalf("Redis error: %v", err)
+	}
+	if rdb != nil {
+		log.Println("Redis connected ✔")
+	}
 
 	// rb, err := rabbitmq.NewRabbitMQ(cfg.RabbitMQ.URL)
 	// if err != nil {
@@ -211,6 +212,15 @@ seatsHandler := seats.NewHandler(seatsService)
 
 seatsGroup := v1.Group("/halls/:hall_id/seats")
 seatsHandler.RegisterRoutes(seatsGroup)
+
+reservationRepo := reservation.NewRepository(db)
+reservationService := reservation.NewService(reservationRepo, rdb) 
+reservationHandler := reservation.NewHandler(reservationService)
+
+reservationGroup := v1.Group("/reservations")
+reservationHandler.RegisterRoutes(reservationGroup)
+
+log.Println("Reservation module registered ✔")
 
 
 
