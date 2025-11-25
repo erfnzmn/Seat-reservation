@@ -51,7 +51,6 @@ func (s *service) CreateReservation(input CreateReservationInput) (*Reservation,
 
 	res := &Reservation{
 		ShowID:    input.ShowID,
-		HallID:    input.HallID,
 		SeatID:    input.SeatID,
 		UserName:  input.UserName,
 		UserPhone: input.UserPhone,
