@@ -1,0 +1,75 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    image: seat-reservation:latest
+    depends_on:
+      - mysql
+      - redis
+      - rabbitmq
+    environment:
+      # Server configuration
+      SERVER_PORT: 8080
+
+      # MySQL configuration
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: seatpass
+      MYSQL_DATABASE: cinema-db
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_PARSETIME: "true"
+      MYSQL_LOC: Local
+
+      # Redis configuration
+      REDIS_ADDRESS: redis:6379
+      REDIS_PASSWORD: ""
+      REDIS_DB: 0
+
+      # RabbitMQ configuration
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+
+      # Admin API key for protected routes
+      ADMIN_KEY: dev-secret
+    ports:
+      - "8080:8080"
+    # The image already contains a default configs.yaml. Environment
+    # variables above override its values at runtime.
+
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: seatpass
+      MYSQL_DATABASE: cinema-db
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+volumes:
+  mysql_data:
+  redis_data:
+  rabbitmq_data:
