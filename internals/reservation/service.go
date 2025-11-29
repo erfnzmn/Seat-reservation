@@ -1,12 +1,14 @@
 package reservation
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"context"
+	"seat-reservation/pkg/rabbitmq"
 )
 
 var (
@@ -21,29 +23,30 @@ type Service interface {
 }
 
 type service struct {
-	repo  Repository
-	redis *redis.Client
+	repo   Repository
+	redis  *redis.Client
+	rabbit *rabbitmq.RabbitMQ
 }
 
-func NewService(repo Repository, redis *redis.Client) Service {
-	return &service{repo: repo, redis: redis}
+func NewService(repo Repository, redis *redis.Client, rabbit *rabbitmq.RabbitMQ) Service {
+	return &service{
+		repo:   repo,
+		redis:  redis,
+		rabbit: rabbit,
+	}
 }
-
 
 func (s *service) CreateReservation(input CreateReservationInput) (*Reservation, error) {
 	ctx := context.Background()
 
-	// 1) Build Redis key
 	lockKey := fmt.Sprintf("lock:seat:%d:show:%d", input.SeatID, input.ShowID)
 
-	// 2) Try Lock (3 seconds)
 	ok, err := s.redis.SetNX(ctx, lockKey, 1, 3*time.Second).Result()
 	if err != nil || !ok {
 		return nil, ErrSeatLockFailed
 	}
 	defer s.redis.Del(ctx, lockKey)
 
-	// 3) Check double booking
 	existing, err := s.repo.GetBySeatAndShow(input.SeatID, input.ShowID)
 	if err == nil && existing != nil && existing.Status == "confirmed" {
 		return nil, ErrSeatAlreadyReserved
@@ -64,10 +67,37 @@ func (s *service) CreateReservation(input CreateReservationInput) (*Reservation,
 	return res, nil
 }
 
-
-
 func (s *service) CancelReservation(id uint) error {
-	return s.repo.Cancel(id)
+    // 1) رزرو را پیدا کن تا show_id و seat_id را داشته باشیم
+    res, err := s.repo.GetByID(id)
+    if err != nil {
+        return err
+    }
+
+    // 2) منطق لغو را به ریپازیتوری بسپار (متد Cancel که قبلاً داشتی)
+    if err := s.repo.Cancel(id); err != nil {
+        return err
+    }
+
+    // 3) انتشار رویداد seat.available برای Worker
+    type SeatAvailableEvent struct {
+        ShowID uint `json:"show_id"`
+        SeatID uint `json:"seat_id"`
+    }
+
+    event := SeatAvailableEvent{
+        ShowID: res.ShowID,
+        SeatID: res.SeatID,
+    }
+
+    if err := s.rabbit.Publish("seat.available", event); err != nil {
+        log.Println("[Reservation] Failed to publish seat.available:", err)
+    } else {
+        log.Printf("[Reservation] Published seat.available → show=%d seat=%d\n",
+            res.ShowID, res.SeatID)
+    }
+
+    return nil
 }
 
 

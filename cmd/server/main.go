@@ -214,7 +214,7 @@ seatsGroup := v1.Group("/halls/:hall_id/seats")
 seatsHandler.RegisterRoutes(seatsGroup)
 // --- Reservation ---
 reservationRepo := reservation.NewRepository(db)
-reservationService := reservation.NewService(reservationRepo, rdb) 
+reservationService := reservation.NewService(reservationRepo, rdb, rb) 
 reservationHandler := reservation.NewHandler(reservationService)
 
 reservationGroup := v1.Group("/reservations")
