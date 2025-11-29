@@ -10,7 +10,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
-	// "seat-reservation/pkg/rabbitmq"
+	"seat-reservation/pkg/rabbitmq"
 	"seat-reservation/pkg/redisclient"
 
 	"github.com/labstack/echo/v4"
@@ -21,6 +21,7 @@ import (
 	"seat-reservation/internals/shows"
 	"seat-reservation/internals/seeder"
 	"seat-reservation/internals/reservation"
+	"seat-reservation/internals/waitinglist"
 )
 
 type ServerConfig struct {
@@ -138,11 +139,10 @@ func main() {
 
 	err = db.AutoMigrate(
 		&shows.Show{},
-		// اگر پکیج‌های دیگر هم ساختیم اینجا اضافه می‌کنیم:
 		&halls.Hall{},
 		&seats.Seat{},
 		&reservation.Reservation{},
-		// &waitinglist.WaitingList{},
+		&waitinglist.WaitingList{},
 	)
 
 	if err != nil {
@@ -168,12 +168,12 @@ func main() {
 		log.Println("Redis connected ✔")
 	}
 
-	// rb, err := rabbitmq.NewRabbitMQ(cfg.RabbitMQ.URL)
-	// if err != nil {
-	// 	log.Fatalf("RabbitMQ error: %v", err)
-	// }
-	// log.Println("Rabbitmq Connected!")
-	// defer rb.Close()
+	rb, err := rabbitmq.NewRabbitMQ(cfg.RabbitMQ.URL)
+	if err != nil {
+		log.Fatalf("RabbitMQ error: %v", err)
+	}
+	log.Println("Rabbitmq Connected!")
+	defer rb.Close()
 
     e := echo.New()
     e.HideBanner = true
@@ -212,15 +212,26 @@ seatsHandler := seats.NewHandler(seatsService)
 
 seatsGroup := v1.Group("/halls/:hall_id/seats")
 seatsHandler.RegisterRoutes(seatsGroup)
-
+// --- Reservation ---
 reservationRepo := reservation.NewRepository(db)
-reservationService := reservation.NewService(reservationRepo, rdb) 
+reservationService := reservation.NewService(reservationRepo, rdb, rb) 
 reservationHandler := reservation.NewHandler(reservationService)
 
 reservationGroup := v1.Group("/reservations")
 reservationHandler.RegisterRoutes(reservationGroup)
 
 log.Println("Reservation module registered ✔")
+
+// --- Waiting List HTTP ---
+waitingRepo := waitinglist.NewRepository(db)
+waitingService := waitinglist.NewService(waitingRepo)
+waitingHandler := waitinglist.NewHandler(waitingService)
+
+waitingGroup := v1.Group("/waitinglist")
+waitingHandler.RegisterRoutes(waitingGroup)
+
+// --- Start WaitingList Worker ---
+waitinglist.StartWorker(rb, waitingRepo, reservationService)
 
 
 
